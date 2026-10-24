@@ -10,10 +10,14 @@ public class BasitOyuncuHareket : MonoBehaviour
     private CharacterController controller;
     private Vector3 hiz;
     private bool yerdeMi;
+    
+    // Doğma noktası değişkeni buraya tanımlanmalı
+    private Vector3 respawnNoktasi;
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
+        respawnNoktasi = transform.position;
     }
 
     void Update()
@@ -21,7 +25,7 @@ public class BasitOyuncuHareket : MonoBehaviour
         yerdeMi = controller.isGrounded;
         if (yerdeMi && hiz.y < 0)
         {
-            hiz.y = -2f; // Karakter yerdeyken aşağı doğru biriken gücü sıfırla
+            hiz.y = -2f;
         }
 
         float yatay = Input.GetAxisRaw("Horizontal");
@@ -30,14 +34,33 @@ public class BasitOyuncuHareket : MonoBehaviour
 
         controller.Move(hareket * yurumeHizi * Time.deltaTime);
 
-        // Boşluk tuşuna basıldığında ve karakter yerdeyse zıpla
         if (Input.GetKeyDown(KeyCode.Space) && yerdeMi)
         {
             hiz.y = Mathf.Sqrt(ziplamaGucu * -2f * yercekimi);
         }
 
-        // Yerçekimini sürekli uygula
         hiz.y += yercekimi * Time.deltaTime;
         controller.Move(hiz * Time.deltaTime);
+    }
+
+    // CharacterController için çarpışma algılama
+    void OnControllerColliderHit(ControllerColliderHit hit) 
+    {
+        if (hit.gameObject.CompareTag("TehlikeliZemin")) 
+        {
+            // Işınlanmanın çalışması için kontrolcüyü anlık kapatıp açıyoruz
+            controller.enabled = false;
+            transform.position = respawnNoktasi; 
+            controller.enabled = true;
+        }
+    }
+
+    // Görünmez Checkpoint alanına (Is Trigger) girme algılama
+    void OnTriggerEnter(Collider alan) 
+    {
+        if (alan.CompareTag("Checkpoint")) 
+        {
+            respawnNoktasi = alan.transform.position; 
+        }
     }
 }
