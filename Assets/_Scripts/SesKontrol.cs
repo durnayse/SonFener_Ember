@@ -7,19 +7,33 @@ public class SesKontrol : MonoBehaviour
 
     private bool sesAcik = true;
 
+    // Sahne geçiþlerinde objeyi korumak için (Singleton mantýðý)
+    public static SesKontrol instance;
+
+    void Awake()
+    {
+        // Eðer sahnede zaten bir SesYoneticisi varsa yenisini sil (müzik üst üste binmesin)
+        if (instance == null)
+        {
+            instance = this;
+            DontDestroyOnLoad(gameObject); // Sahne deðiþse de beni yok etme!
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
     void Start()
     {
         sesAcik = PlayerPrefs.GetInt("SesAyari", 1) == 1;
-
         MuzikDurumunuGuncelle();
     }
 
     public void SesAcKapat()
     {
-        sesAcik = !sesAcik; 
-
+        sesAcik = !sesAcik;
         PlayerPrefs.SetInt("SesAyari", sesAcik ? 1 : 0);
-
         MuzikDurumunuGuncelle();
     }
 
@@ -27,13 +41,13 @@ public class SesKontrol : MonoBehaviour
     {
         if (sesAcik)
         {
-            arkaPlanMuzigi.mute = false; 
-            kapatmaCizgisi.SetActive(false); 
+            arkaPlanMuzigi.mute = false;
+            if (kapatmaCizgisi != null) kapatmaCizgisi.SetActive(false);
         }
         else
         {
-            arkaPlanMuzigi.mute = true; 
-            kapatmaCizgisi.SetActive(true); 
+            arkaPlanMuzigi.mute = true;
+            if (kapatmaCizgisi != null) kapatmaCizgisi.SetActive(true);
         }
     }
 }
