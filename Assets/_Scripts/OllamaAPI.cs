@@ -16,12 +16,11 @@ public class OllamaCevapSablonu
 public class OllamaAPI : MonoBehaviour
 {
     public TextMeshProUGUI diyalogMetinAlani;
-
     void Start()
     {
         Debug.Log("Ollama'ya istek atýlýyor...");
-        // Burada yapay zekaya bir rol veriyoruz: "Sen bir oyun karakterisin, Türkçe ve net cevap ver."
-        StartCoroutine(SendOllamaRequest("Sen bir RPG oyunundaki bir karakterdin. Oyuncuya kýsa, net ve anlaþýlýr Türkçe bir selamlama cümlesi kur."));
+        // Modele Türkçe kurallarýna uymasý ve sadece tek bir kýsa cümle kurmasý için net bir talimat veriyoruz
+        StartCoroutine(SendOllamaRequest("Sadece Türkçe konuþ. RPG oyunundaki bir köylüsün. Oyuncuya sadece 'Yabancý, köye hoþ geldin!' de. Baþka hiçbir þey ekleme."));
     }
 
     IEnumerator SendOllamaRequest(string promptText)
