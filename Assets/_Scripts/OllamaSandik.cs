@@ -115,6 +115,9 @@ public class OllamaSandik : MonoBehaviour
         {
             altYaziAlani.text = "TEBRÝKLER! Doðru cevap, +1 CAN KAZANDIN!";
 
+            // --- CANI ARTIRAN KOD SATIRI ---
+            FindObjectOfType<CheckpointVeOlum>()?.CanArtir();
+
             cevapKutusu.gameObject.SetActive(false);
             gonderButonu.gameObject.SetActive(false);
 

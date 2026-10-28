@@ -1,46 +1,72 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class CheckpointVeOlum : MonoBehaviour
 {
-    // Oyuncunun doğacağı güncel kayıt noktası
     private Vector3 sonCheckpointNoktasi;
     private CharacterController controller;
 
+    [Header("Can Sistemi")]
+    public List<GameObject> kalpler;
+    private int mevcutCan;
+
     void Start()
     {
-        // Oyun başladığında ilk doğduğu yeri başlangıç checkpoint'i kabul et
         sonCheckpointNoktasi = transform.position;
         controller = GetComponent<CharacterController>();
+
+        if (kalpler != null && kalpler.Count > 0)
+        {
+            mevcutCan = kalpler.Count;
+        }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        // 1. Eğer oyuncu bir Checkpoint noktasına değerse
+        // Checkpoint
         if (other.CompareTag("Checkpoint"))
         {
             sonCheckpointNoktasi = other.transform.position;
-            Debug.Log("Checkpoint kaydedildi! Yeni konum: " + sonCheckpointNoktasi);
-            
-            // İsteğe bağlı: Checkpoint alındığında rengini yeşile çevir
             Renderer cpRenk = other.GetComponent<Renderer>();
             if (cpRenk != null) cpRenk.material.color = Color.green;
         }
 
-        // 2. Eğer oyuncu ilk odadaki tehlikeli zemine (yere) düşerse
+        // Düşme / Yanma
         if (other.CompareTag("TehlikeliZemin"))
         {
-            Debug.Log("Yere değdin! Son Checkpoint noktasına ışınlanıyorsun...");
+            CanEksilt();
             SonCheckpointeIsinla();
+        }
+    }
+
+    // CAN EKSİLT
+    public void CanEksilt()
+    {
+        if (mevcutCan > 0)
+        {
+            mevcutCan--;
+            if (kalpler != null && mevcutCan < kalpler.Count)
+            {
+                kalpler[mevcutCan].SetActive(false);
+            }
+        }
+    }
+
+    // CAN ARTIR
+    public void CanArtir()
+    {
+        if (kalpler != null && mevcutCan < kalpler.Count)
+        {
+            kalpler[mevcutCan].SetActive(true);
+            mevcutCan++;
+            Debug.Log("Can arttı! Güncel Can: " + mevcutCan);
         }
     }
 
     void SonCheckpointeIsinla()
     {
-        // CharacterController kullanıyorsak ışınlamadan önce kapatıp açmak gerekir
         if (controller != null) controller.enabled = false;
-        
-        transform.position = sonCheckpointNoktasi + new Vector3(0, 1f, 0); // Hafif yukarıdan doğsun
-        
+        transform.position = sonCheckpointNoktasi + new Vector3(0, 1f, 0);
         if (controller != null) controller.enabled = true;
     }
 }
