@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -18,6 +19,14 @@ public class OllamaSandik : MonoBehaviour
     private int dogruCevap;
     private bool soruSoruldu = false;
 
+    // --- HOCANIN ÝSTEDÝÐÝ JSON MODELÝ ---
+    [Serializable]
+    public class SoruJsonModel
+    {
+        public string soru;
+        public int cevap;
+    }
+
     void Start()
     {
         if (cevapKutusu != null) cevapKutusu.gameObject.SetActive(false);
@@ -36,7 +45,7 @@ public class OllamaSandik : MonoBehaviour
             soruSoruldu = true;
 
             if (altYaziAlani != null)
-                altYaziAlani.text = "Sandýk açýlýyor... Ollama matematik sorusunu hazýrlýyor...";
+                altYaziAlani.text = "Sandýk açýlýyor... Ollama JSON sorusunu hazýrlýyor...";
 
             StartCoroutine(OllamaSoruCek());
         }
@@ -44,16 +53,21 @@ public class OllamaSandik : MonoBehaviour
 
     IEnumerator OllamaSoruCek()
     {
-        int sayi1 = Random.Range(1, 15);
-        int sayi2 = Random.Range(1, 15);
-        dogruCevap = sayi1 + sayi2;
+        int sayi1 = UnityEngine.Random.Range(1, 15);
+        int sayi2 = UnityEngine.Random.Range(1, 15);
+
+        // JSON formatýnda çýktý istemek için özel system prompt
+        string jsonSystemPrompt = "Sen JSON formatýnda çýktý üreten bir matematik botusun. " +
+                                  "YANITIN SADECE VE SADECE GEÇERLÝ BÝR JSON OLMALIDIR. " +
+                                  "Örnek format: {\"soru\": \"5 + 3 kaçtýr?\", \"cevap\": 8}";
 
         OllamaIstek istekVerisi = new OllamaIstek
         {
             model = modelAdi,
             prompt = $"{sayi1} + {sayi2} kaçtýr?",
-            system = "Sen sadece matematik sorusunu soran bir oyun nesnesisin. Asla baþlýk, markdown (#) veya açýklama ekleme. Sadece soruyu yaz.",
-            stream = false
+            system = jsonSystemPrompt,
+            stream = false,
+            format = "json" // Ollama'nýn yerel JSON modunu zorluyoruz
         };
 
         string jsonData = JsonUtility.ToJson(istekVerisi);
@@ -65,41 +79,68 @@ public class OllamaSandik : MonoBehaviour
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json");
 
+            // 5 Saniye Zaman Aþýmý (Oyunun sonsuza kadar beklemesini önler)
+            request.timeout = 30;
+
             yield return request.SendWebRequest();
 
+            // --- HATA YÖNETÝMÝ (ERROR HANDLING) ---
             if (request.result == UnityWebRequest.Result.Success)
             {
-                OllamaYanit yanit = JsonUtility.FromJson<OllamaYanit>(request.downloadHandler.text);
-
-                // Gelen metni temizleyip soru satýrýný çekiyoruz
-                string gelenMetin = yanit.response;
-                string temizSoru = $"{sayi1} + {sayi2} kaçtýr?";
-
-                string[] satirlar = gelenMetin.Split(new[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
-                foreach (string satir in satirlar)
+                try
                 {
-                    if (satir.Contains("?") || satir.Contains("kaçtýr"))
+                    OllamaYanit yanit = JsonUtility.FromJson<OllamaYanit>(request.downloadHandler.text);
+
+                    // LLM'den gelen JSON string'ini C# nesnesine dönüþtürme (Structured Output)
+                    SoruJsonModel gelenSoru = JsonUtility.FromJson<SoruJsonModel>(yanit.response);
+
+                    if (gelenSoru != null && !string.IsNullOrEmpty(gelenSoru.soru))
                     {
-                        temizSoru = satir.Replace("#", "").Replace("*", "").Replace("-", "").Trim();
-                        break;
+                        altYaziAlani.text = gelenSoru.soru;
+                        dogruCevap = gelenSoru.cevap > 0 ? gelenSoru.cevap : (sayi1 + sayi2);
                     }
+                    else
+                    {
+                        // Bozuk JSON gelirse Fallback (Yedek Plan)
+                        altYaziAlani.text = $"{sayi1} + {sayi2} kaçtýr?";
+                        dogruCevap = sayi1 + sayi2;
+                    }
+
+                    // UI Kutularýný Aç ve Fareyi Serbest Býrak
+                    if (cevapKutusu != null) cevapKutusu.gameObject.SetActive(true);
+                    if (gonderButonu != null) gonderButonu.gameObject.SetActive(true);
+
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
                 }
+                catch (Exception ex)
+                {
+                    // JSON parsing hatasý durumunda oyunun çökmesini engeller
+                    Debug.LogWarning("JSON Parse Hatasý: " + ex.Message);
+                    altYaziAlani.text = $"[Yedek Soru] {sayi1} + {sayi2} kaçtýr?";
+                    dogruCevap = sayi1 + sayi2;
 
-                if (altYaziAlani != null)
-                    altYaziAlani.text = temizSoru;
+                    if (cevapKutusu != null) cevapKutusu.gameObject.SetActive(true);
+                    if (gonderButonu != null) gonderButonu.gameObject.SetActive(true);
 
-                // Kutularý ekrana getiriyoruz
-                if (cevapKutusu != null) cevapKutusu.gameObject.SetActive(true);
-                if (gonderButonu != null) gonderButonu.gameObject.SetActive(true);
-
-                // --- FAREYÝ SERBEST BIRAKIYORUZ (Týklayabilmen için) ---
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
             }
             else
             {
+                // --- OLLAMA KAPALI VEYA SUNUCU ÇÖKMÜÞSE ---
+                Debug.LogError("Ollama Sunucu Hatasý: " + request.error);
                 if (altYaziAlani != null)
-                    altYaziAlani.text = "Ollama ile baðlantý kurulamadý!";
+                    altYaziAlani.text = "Ollama Kapalý! (Yedek Soru): " + sayi1 + " + " + sayi2 + " kaçtýr?";
+
+                dogruCevap = sayi1 + sayi2;
+
+                if (cevapKutusu != null) cevapKutusu.gameObject.SetActive(true);
+                if (gonderButonu != null) gonderButonu.gameObject.SetActive(true);
+
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
             }
         }
     }
@@ -115,13 +156,12 @@ public class OllamaSandik : MonoBehaviour
         {
             altYaziAlani.text = "TEBRÝKLER! Doðru cevap, +1 CAN KAZANDIN!";
 
-            // --- CANI ARTIRAN KOD SATIRI ---
+            // Can Artýrma Fonksiyonu
             FindObjectOfType<CheckpointVeOlum>()?.CanArtir();
 
             cevapKutusu.gameObject.SetActive(false);
             gonderButonu.gameObject.SetActive(false);
 
-            // --- FAREYÝ TEKRAR OYUNA KÝLÝTLÝYORUZ ---
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
@@ -134,16 +174,17 @@ public class OllamaSandik : MonoBehaviour
         }
     }
 
-    [System.Serializable]
+    [Serializable]
     public class OllamaIstek
     {
         public string model;
         public string prompt;
         public string system;
         public bool stream;
+        public string format;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class OllamaYanit
     {
         public string response;
