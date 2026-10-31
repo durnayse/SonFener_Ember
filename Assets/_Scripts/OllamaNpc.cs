@@ -32,15 +32,15 @@ public class OllamaNpc : MonoBehaviour
     {
         if (sohbetPaneli != null) sohbetPaneli.SetActive(false);
 
-        // Butona Týklama Desteði
         if (gonderButonu != null)
         {
+            gonderButonu.onClick.RemoveAllListeners();
             gonderButonu.onClick.AddListener(MesajGonder);
         }
 
-        // Enter Tuþuna Basarak Gönderme Desteði
         if (oyuncuCevapKutusu != null)
         {
+            oyuncuCevapKutusu.onSubmit.RemoveAllListeners();
             oyuncuCevapKutusu.onSubmit.AddListener(delegate { MesajGonder(); });
         }
     }
@@ -52,7 +52,15 @@ public class OllamaNpc : MonoBehaviour
             oyuncuYakinMi = true;
 
             if (sohbetPaneli != null) sohbetPaneli.SetActive(true);
-            if (oyuncuCevapKutusu != null) oyuncuCevapKutusu.gameObject.SetActive(true);
+
+            // Yazý alanýnýn GameObject'ini garanti olsun diye açýyoruz
+            if (periYaziAlani != null) periYaziAlani.gameObject.SetActive(true);
+
+            if (oyuncuCevapKutusu != null)
+            {
+                oyuncuCevapKutusu.gameObject.SetActive(true);
+                oyuncuCevapKutusu.text = "";
+            }
             if (gonderButonu != null) gonderButonu.gameObject.SetActive(true);
 
             Cursor.lockState = CursorLockMode.None;
@@ -80,10 +88,9 @@ public class OllamaNpc : MonoBehaviour
     public void MesajGonder()
     {
         if (!oyuncuYakinMi || kapiAcildiMi) return;
-
         if (oyuncuCevapKutusu == null || string.IsNullOrEmpty(oyuncuCevapKutusu.text.Trim())) return;
 
-        string oyuncuMesaji = oyuncuCevapKutusu.text.Trim();
+        string oyuncuMesaji = oyuncuCevapKutusu.text;
 
         if (periYaziAlani != null)
             periYaziAlani.text = "Peri cevabýný kontrol ediyor...";
@@ -95,8 +102,10 @@ public class OllamaNpc : MonoBehaviour
 
     IEnumerator OllamaNpcSorgula(string oyuncuMesaji)
     {
-        string temizCevap = oyuncuMesaji.ToLower(new System.Globalization.CultureInfo("tr-TR")).Trim();
+        string temizCevap = oyuncuMesaji.Replace("\u200B", "").Trim().ToLower(new System.Globalization.CultureInfo("tr-TR"));
         bool cevapDogruMu = temizCevap.Contains("7") || temizCevap.Contains("yedi");
+
+        Debug.Log($"[NPC KONTROL] Ham Mesaj: '{oyuncuMesaji}' | Temiz: '{temizCevap}' | Sonuç: {cevapDogruMu}");
 
         string durumTalimati = cevapDogruMu
             ? "Oyuncunun cevabý DOÐRU (Dünyada 7 kýta vardýr)! Oyuncuyu tebrik et ve kapiAcilsin deðerini true yap."
@@ -121,7 +130,7 @@ public class OllamaNpc : MonoBehaviour
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json");
-            request.timeout = 20;
+            request.timeout = 15;
 
             yield return request.SendWebRequest();
 
@@ -134,8 +143,7 @@ public class OllamaNpc : MonoBehaviour
 
                     if (gelenYanit != null)
                     {
-                        if (cevapDogruMu)
-                            gelenYanit.kapiAcilsin = true;
+                        if (cevapDogruMu) gelenYanit.kapiAcilsin = true;
 
                         periYaziAlani.text = gelenYanit.cevap;
 
@@ -143,7 +151,7 @@ public class OllamaNpc : MonoBehaviour
                         {
                             kapiAcildiMi = true;
                             StartCoroutine(KapiyiKaydir());
-                            Invoke("SohbetiKapat", 4f);
+                            Invoke(nameof(SohbetiKapat), 4f);
                         }
                     }
                 }
@@ -153,9 +161,9 @@ public class OllamaNpc : MonoBehaviour
                     if (cevapDogruMu)
                     {
                         periYaziAlani.text = "Doðru cevap! Kapý açýlýyor...";
-                        StartCoroutine(KapiyiKaydir());
                         kapiAcildiMi = true;
-                        Invoke("SohbetiKapat", 4f);
+                        StartCoroutine(KapiyiKaydir());
+                        Invoke(nameof(SohbetiKapat), 4f);
                     }
                     else
                     {
@@ -165,11 +173,18 @@ public class OllamaNpc : MonoBehaviour
             }
             else
             {
-                Debug.LogError("Ollama Offline: " + request.error);
-                periYaziAlani.text = "[Ollama Baðlantýsý Yok] Peri uykuda, kapý açýldý!";
-                StartCoroutine(KapiyiKaydir());
-                kapiAcildiMi = true;
-                Invoke("SohbetiKapat", 4f);
+                Debug.LogError("Ollama Offline veya Zaman Aþýmý: " + request.error);
+                if (cevapDogruMu)
+                {
+                    periYaziAlani.text = "[Ollama Baðlantýsý Yok] Ama cevabýn doðru! Kapý açýlýyor...";
+                    kapiAcildiMi = true;
+                    StartCoroutine(KapiyiKaydir());
+                    Invoke(nameof(SohbetiKapat), 4f);
+                }
+                else
+                {
+                    periYaziAlani.text = "[Ollama Baðlantýsý Yok] Peri uyuyor, cevabýn da yanlýþ zaten.";
+                }
             }
         }
     }
@@ -197,6 +212,12 @@ public class OllamaNpc : MonoBehaviour
     void SohbetiKapat()
     {
         if (sohbetPaneli != null) sohbetPaneli.SetActive(false);
+
+        // Þunlarý da ekliyoruz ki yazý alaný ve butonlar arkada açýk kalýp seninle gelmesin!
+        if (periYaziAlani != null) periYaziAlani.gameObject.SetActive(false);
+        if (oyuncuCevapKutusu != null) oyuncuCevapKutusu.gameObject.SetActive(false);
+        if (gonderButonu != null) gonderButonu.gameObject.SetActive(false);
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
