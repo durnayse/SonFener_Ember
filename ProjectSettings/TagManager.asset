@@ -6,6 +6,7 @@ TagManager:
   tags:
   - TehlikeliZemin
   - Checkpoint
+  - Ember
   layers:
   - Default
   - TransparentFX
