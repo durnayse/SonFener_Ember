@@ -1,12 +1,15 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 public class FenerNpcController : MonoBehaviour
 {
     [Header("Bağlantılar")]
-    [SerializeField] private OllamaYeniClient llmClient; // Az önce yazdığımız istemci
-    [SerializeField] private GameObject acilacakKapi;    // İkna olunca açılacak kapı objesi
+    [SerializeField] private OllamaYeniClient llmClient;
+    [SerializeField] private GameObject acilacakKapi;
+
+    [SerializeField] private TextMeshProUGUI durumYazisiUI;
 
     [Header("Oyun Durumu")]
     [SerializeField] private int mevcutIknaPuani = 0;
@@ -18,20 +21,19 @@ public class FenerNpcController : MonoBehaviour
 
     void Start()
     {
-        // Bileşen otomatik atanmadıysa sahnede arayalım
         if (llmClient == null)
             llmClient = GetComponent<OllamaYeniClient>();
 
-        // Başlangıç promptlarını yükleyelim
         sohbetGecmisi = NpcPromptBuilder.OlusturBaslangicMesajlari();
 
         Debug.Log("[FenerNPC] Muhafız Peri yerini aldı. Oyuncuyu bekliyor...");
     }
 
-    // Oyuncu bir şeyler yazdığında (UI'dan veya konsoldan) bu fonksiyonu çağıracağız
     public void OyuncuMesajiGonder(string oyuncuMetni)
     {
         if (kapıAcildi || istekGidiyor || string.IsNullOrWhiteSpace(oyuncuMetni)) return;
+
+        if (durumYazisiUI != null) durumYazisiUI.text = "Muhafız düşünüyor...";
 
         StartCoroutine(MesajGonderCoroutine(oyuncuMetni));
     }
@@ -41,50 +43,27 @@ public class FenerNpcController : MonoBehaviour
         istekGidiyor = true;
         Debug.Log("[Oyuncu]: " + oyuncuMetni);
 
-        // Oyuncunun mesajını geçmişe ekleyelim
         sohbetGecmisi.Add(new ChatMessage("user", oyuncuMetni));
 
         LlmSonuc sonuc = null;
-        yield
-
- return StartCoroutine(llmClient.GonderAsync(sohbetGecmisi, (yanit) => {
-     sonuc = yanit;
- }));
+        yield return StartCoroutine(llmClient.GonderAsync(sohbetGecmisi, (yanit) => {
+            sonuc = yanit;
+        }));
 
         istekGidiyor = false;
 
         if (sonuc != null && sonuc.Durum == LlmDurum.Basarili)
         {
-            // Gelen ham cevabı parse edelim
             NpcReply npcYanit = LlmResponseParser.Parse(sonuc.HamIcerik);
-
-            // Puanı güncelleyelim
             mevcutIknaPuani = npcYanit.ikna_puani;
-            Debug.Log("[Peri]: " + npcYanit.cevap + " (İkna Puanı: " + mevcutIknaPuani + "/" + hedefIknaPuani + ")");
 
-            // Asistanın cevabını hafızaya ekleyelim ki geçmişi bilsin
-            sohbetGecmisi.Add(new ChatMessage("assistant", sonuc.HamIcerik));
-
-            // İkna kontrolü
-            if (mevcutIknaPuani >= hedefIknaPuani && !kapıAcildi)
+            if (durumYazisiUI != null)
             {
-                KapiyiAc();
+                durumYazisiUI.text = npcYanit.cevap;
             }
-        }
-        else
-        {
-            Debug.LogWarning("[FenerNPC] Yapay zekadan yanıt alınamadı. Durum: " + (sonuc?.Durum.ToString() ?? "Bilinmiyor"));
+
+            Debug.Log("[Peri]: " + npcYanit.cevap + " (İkna Puanı: " + mevcutIknaPuani + "/" + hedefIknaPuani + ")");
         }
     }
 
-    private void KapiyiAc()
-    {
-        kapıAcildi = true;
-        Debug.Log("🎉 TEBRİKLER! Peri ikna oldu ve Fener Kapısı açıldı!");
-
-        if (acilacakKapi != null)
-        {
-            acilacakKapi.SetActive(false); // Kapıyı yok et veya aç
-        }
-    }
 }
