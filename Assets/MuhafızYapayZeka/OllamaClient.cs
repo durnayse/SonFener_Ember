@@ -5,7 +5,7 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 
-public class OllamaYeniClient : MonoBehaviour, ILlmClient
+public class OllamaClient : MonoBehaviour, ILlmClient
 {
     [Header("Ollama Ayarlarý")]
     [SerializeField] private string modelAdi = "llama3.2:3b";
@@ -46,6 +46,7 @@ public class OllamaYeniClient : MonoBehaviour, ILlmClient
             options = new Secenekler { temperature = sicaklik, num_predict = maksCevapTokeni }
         };
 
+        // JsonUtility "format" alanýný (þema) yazamadýðý için sona elle ekliyoruz
         string json = JsonUtility.ToJson(istek);
         json = json.Substring(0, json.Length - 1) + ",\"format\":" + JsonSemasi + "}";
 
@@ -58,7 +59,7 @@ public class OllamaYeniClient : MonoBehaviour, ILlmClient
             request.SetRequestHeader("Content-Type", "application/json");
             request.timeout = zamanAsimiSaniye;
 
-            yield return request.SendWebRequest();
+            yield return request.SendWebRequest();   // oyunu dondurmaz
 
             if (request.result == UnityWebRequest.Result.ConnectionError)
             {
@@ -68,6 +69,7 @@ public class OllamaYeniClient : MonoBehaviour, ILlmClient
             }
             else if (request.result == UnityWebRequest.Result.ProtocolError)
             {
+                // Örn. 404 = model indirilmemiþ
                 sonuc.Durum = LlmDurum.ModelHatasi;
                 sonuc.Hata = "HTTP " + request.responseCode + " - " + request.downloadHandler.text;
             }
@@ -95,7 +97,7 @@ public class OllamaYeniClient : MonoBehaviour, ILlmClient
         }
 
         if (sonuc.Durum != LlmDurum.Basarili)
-            Debug.LogWarning("[OllamaYeni] " + sonuc.Durum + " : " + sonuc.Hata);
+            Debug.LogWarning("[Ollama] " + sonuc.Durum + " : " + sonuc.Hata);
 
         bitince?.Invoke(sonuc);
     }
