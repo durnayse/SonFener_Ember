@@ -59,11 +59,22 @@ public class NpcDialogueController : MonoBehaviour
         }
     }
 
+    // ---------- Yaklaþma / uzaklaþma ----------
+
     private void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player") || _kapiAcildi) return;
 
         _oyuncuYakin = true;
+        StartCoroutine(SohbetiAc());
+    }
+
+    private IEnumerator SohbetiAc()
+    {
+        yield return null;   // bir kare bekle: fizik olayý bitsin
+
+        if (!_oyuncuYakin || _kapiAcildi) yield break;
+
         if (sohbetPaneli != null) sohbetPaneli.SetActive(true);
         if (oyuncuCevapKutusu != null) oyuncuCevapKutusu.text = "";
 
@@ -80,11 +91,29 @@ public class NpcDialogueController : MonoBehaviour
         if (!other.CompareTag("Player")) return;
 
         _oyuncuYakin = false;
-        if (!_kapiAcildi && sohbetPaneli != null) sohbetPaneli.SetActive(false);
+        StartCoroutine(SohbetiKapatGecikmeli());
+    }
+
+    private IEnumerator SohbetiKapatGecikmeli()
+    {
+        yield return null;   // bir kare bekle
+
+        if (_oyuncuYakin) yield break;   // bu arada tekrar yaklaþtýysa kapatma
+
+        // Sohbet zaten açýk deðilse imlece hiç dokunma
+        bool panelAcikti = sohbetPaneli != null && sohbetPaneli.activeSelf;
+        if (!panelAcikti) yield break;
+
+        if (!_kapiAcildi) sohbetPaneli.SetActive(false);
+
+        // Oyun durmuþsa (Game Over gibi) imleci kilitleme
+        if (Time.timeScale == 0f) yield break;
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
+
+    // ---------- Mesajlaþma ----------
 
     public void MesajGonder()
     {
@@ -102,7 +131,7 @@ public class NpcDialogueController : MonoBehaviour
     {
         _istekDevam = true;
         EtkilesimiAyarla(false);
-        periYaziAlani.text = "Peri düþünüyor...";
+        if (periYaziAlani != null) periYaziAlani.text = "Peri düþünüyor...";
 
         _gecmis.Add(new ChatMessage("user", kullaniciMesaji));
         GecmisiKirp();
@@ -129,8 +158,9 @@ public class NpcDialogueController : MonoBehaviour
 
         if (!basarili)
         {
-            _gecmis.RemoveAt(_gecmis.Count - 1);   // cevapsýz kalan mesajý geçmiþten çýkar
-            periYaziAlani.text = HataMesaji(sonuc != null ? sonuc.Durum : LlmDurum.SunucuYok);
+            if (_gecmis.Count > 0) _gecmis.RemoveAt(_gecmis.Count - 1);   // cevapsýz kalan mesajý çýkar
+            if (periYaziAlani != null)
+                periYaziAlani.text = HataMesaji(sonuc != null ? sonuc.Durum : LlmDurum.SunucuYok);
             _istekDevam = false;
             EtkilesimiAyarla(true);
             yield break;
@@ -142,7 +172,7 @@ public class NpcDialogueController : MonoBehaviour
         string metin = cevap.cevap;
         if (puaniGoster && !selamlama)
             metin += "\n\n<size=70%><i>(Ýkna: " + cevap.ikna_puani + "/10)</i></size>";
-        periYaziAlani.text = metin;
+        if (periYaziAlani != null) periYaziAlani.text = metin;
 
         Debug.Log("[NPC] Mesaj: '" + kullaniciMesaji + "' | Puan: " + cevap.ikna_puani + " | Cevap: " + cevap.cevap);
 
@@ -151,7 +181,7 @@ public class NpcDialogueController : MonoBehaviour
         if (!selamlama && cevap.ikna_puani >= kapiAcmaPuani)
         {
             _kapiAcildi = true;
-            _kapi.Ac();
+            if (_kapi != null) _kapi.Ac();
             yield return new WaitForSeconds(4f);
             SohbetiKapat();
         }
@@ -201,6 +231,9 @@ public class NpcDialogueController : MonoBehaviour
     private void SohbetiKapat()
     {
         if (sohbetPaneli != null) sohbetPaneli.SetActive(false);
+
+        if (Time.timeScale == 0f) return;   // oyun durmuþsa imlece dokunma
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
