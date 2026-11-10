@@ -18,15 +18,15 @@ public class OllamaAPI : MonoBehaviour
     public TextMeshProUGUI diyalogMetinAlani;
     void Start()
     {
-        Debug.Log("Ollama'ya istek atýlýyor...");
-        // Modele Türkçe kurallarýna uymasý ve sadece tek bir kýsa cümle kurmasý için net bir talimat veriyoruz
-        StartCoroutine(SendOllamaRequest("Sadece Türkçe konuþ. RPG oyunundaki bir köylüsün. Oyuncuya sadece 'Yabancý, köye hoþ geldin!' de. Baþka hiçbir þey ekleme."));
+        Debug.Log("Ollama'ya istek atï¿½lï¿½yor...");
+        // Modele Tï¿½rkï¿½e kurallarï¿½na uymasï¿½ ve sadece tek bir kï¿½sa cï¿½mle kurmasï¿½ iï¿½in net bir talimat veriyoruz
+        StartCoroutine(SendOllamaRequest("Sadece Tï¿½rkï¿½e konuï¿½. RPG oyunundaki bir kï¿½ylï¿½sï¿½n. Oyuncuya sadece 'Yabancï¿½, kï¿½ye hoï¿½ geldin!' de. Baï¿½ka hiï¿½bir ï¿½ey ekleme."));
     }
 
     IEnumerator SendOllamaRequest(string promptText)
     {
         string url = "http://localhost:11434/api/generate";
-        string jsonData = "{\"model\":\"phi3:mini\", \"prompt\":\"" + promptText + "\", \"stream\":false}";
+        string jsonData = "{\"model\":\"llama3.2\", \"prompt\":\"" + promptText + "\", \"stream\":false}";
 
         using (UnityWebRequest request = new UnityWebRequest(url, "POST"))
         {
@@ -39,14 +39,14 @@ public class OllamaAPI : MonoBehaviour
 
             if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError)
             {
-                Debug.LogError("Baðlantý Hatasý: " + request.error);
+                Debug.LogError("Baï¿½lantï¿½ Hatasï¿½: " + request.error);
             }
             else
             {
                 string hamJson = request.downloadHandler.text;
                 OllamaCevapSablonu parcalanmisVeri = JsonUtility.FromJson<OllamaCevapSablonu>(hamJson);
 
-                Debug.Log("Yapay Zekanýn Temiz Cevabý: " + parcalanmisVeri.response);
+                Debug.Log("Yapay Zekanï¿½n Temiz Cevabï¿½: " + parcalanmisVeri.response);
 
                 if (diyalogMetinAlani != null)
                 {

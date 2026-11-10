@@ -446,6 +446,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: KuleMuhafiz
       objectReference: {fileID: 0}
+    - target: {fileID: 8922077617980662165, guid: 3079028c828aeaa4f83325b6c57525a5, type: 3}
+      propertyPath: modelAdi
+      value: llama3.2
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
