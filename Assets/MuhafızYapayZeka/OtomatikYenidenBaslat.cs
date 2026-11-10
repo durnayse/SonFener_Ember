@@ -2,23 +2,29 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Bu script Game Over panelinin üstüne eklenir.
-// Panel açılınca bekler, sonra sahneyi baştan yükler.
 public class OtomatikYenidenBaslat : MonoBehaviour
 {
     [SerializeField] private float beklemeSuresi = 3f;
+    [SerializeField] private string sahneAdi = "Ember_Scene";
+
+    private bool _basladi;
 
     private void OnEnable()
     {
+        if (_basladi) return;
+
+        // Panel oyun başında açık geliyorsa hemen yeniden başlatma
+        if (Time.timeSinceLevelLoad < 0.5f) return;
+
+        _basladi = true;
         StartCoroutine(YenidenBaslat());
     }
 
     private IEnumerator YenidenBaslat()
     {
-        // timeScale 0 olsa bile çalışsın diye gerçek zaman kullanıyoruz
         yield return new WaitForSecondsRealtime(beklemeSuresi);
 
         Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        SceneManager.LoadScene(sahneAdi);
     }
 }

@@ -1,6 +1,7 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
-using UnityEngine.SceneManagement; // Sahne yüklemek için eklediğimiz kütüphane
+using UnityEngine.SceneManagement;
 
 public class CheckpointVeOlum : MonoBehaviour
 {
@@ -12,14 +13,14 @@ public class CheckpointVeOlum : MonoBehaviour
     private int mevcutCan;
 
     [Header("Arayüz (UI)")]
-    public GameObject gameOverPanel; // Game Over panelimiz
+    public GameObject gameOverPanel;
 
     void Start()
     {
         sonCheckpointNoktasi = transform.position;
         controller = GetComponent<CharacterController>();
 
-        // Oyun başladığında zaman akışını normale alıp Game Over panelini gizleyelim (güvenlik için)
+        // Oyun başladığında zamanı normale al ve Game Over panelini gizle
         Time.timeScale = 1f;
         if (gameOverPanel != null)
         {
@@ -34,7 +35,7 @@ public class CheckpointVeOlum : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // Checkpoint
+        // Checkpoint noktasından geçince
         if (other.CompareTag("Checkpoint"))
         {
             sonCheckpointNoktasi = other.transform.position;
@@ -42,68 +43,70 @@ public class CheckpointVeOlum : MonoBehaviour
             if (cpRenk != null) cpRenk.material.color = Color.green;
         }
 
-        // Düşme / Yanma
+        // Lavlara/tehlikeli zemine düşünce
         if (other.CompareTag("TehlikeliZemin"))
         {
             CanEksilt();
-            SonCheckpointeIsinla();
         }
     }
 
-    // CAN EKSİLT
     public void CanEksilt()
     {
         if (mevcutCan > 0)
         {
             mevcutCan--;
+
+            // İlgili kalp UI'ını gizle
             if (kalpler != null && mevcutCan < kalpler.Count)
             {
                 kalpler[mevcutCan].SetActive(false);
             }
 
-            // Can sıfırlandıysa oyunu bitir
+            // Can sıfırlandıysa oyunu bitir, bitmediyse checkpointe dön
             if (mevcutCan <= 0)
             {
-                OyunuBitir();
+                StartCoroutine(OyunuBitirVeOtomatikBaslat());
+            }
+            else
+            {
+                SonCheckpointeIsinla();
             }
         }
     }
 
-    // CAN ARTIR
     public void CanArtir()
     {
         if (kalpler != null && mevcutCan < kalpler.Count)
         {
             kalpler[mevcutCan].SetActive(true);
             mevcutCan++;
-            Debug.Log("Can arttı! Güncel Can: " + mevcutCan);
         }
     }
 
     void SonCheckpointeIsinla()
     {
-        // Eğer can sıfırlandıysa ışınlamaya gerek yok, zaten oyun donacak
-        if (mevcutCan <= 0) return;
-
+        // Işınlanma sırasında controller hata vermesin diye anlık kapatıp açıyoruz
         if (controller != null) controller.enabled = false;
         transform.position = sonCheckpointNoktasi + new Vector3(0, 1f, 0);
         if (controller != null) controller.enabled = true;
     }
 
-    // OYUN BİTİŞ MANTIĞI
-    private void OyunuBitir()
+    // 3 SANİYE BEKLEYİP OTOMATİK YENİDEN BAŞLATAN BÖLÜM
+    private IEnumerator OyunuBitirVeOtomatikBaslat()
     {
+        // Game Over yazısını ekrana getir
         if (gameOverPanel != null)
         {
-            gameOverPanel.SetActive(true); // Ekrana Game Over panelini getir
+            gameOverPanel.SetActive(true);
         }
-        Time.timeScale = 0f; // Arkada akan oyunu ve zamanı tamamen durdur
-    }
 
-    // TEKRAR BAŞLAMA MANTIĞI (Butona bunu bağlayacağız)
-    public void RestartGame()
-    {
-        Time.timeScale = 1f; // Zamanı normale döndür
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); // Şu anki sahneyi en baştan yükle
+        // Karakterin hareket etmesini engelle (Konsoldaki kırmızı uyarı buradan gelir, oyunu bozmaz)
+        if (controller != null) controller.enabled = false;
+
+        // Tam 3 saniye bekle
+        yield return new WaitForSeconds(3f);
+
+        // Sahneyi pırıl pırıl baştan yükle
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }
